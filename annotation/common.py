@@ -28,20 +28,33 @@ def extended_annotation(func):
 
     return wrapper
 
+@annotation
+def extended_classmethod(func):
+    """
+    拓展@classmethod支持
+    """
+    def wrapper(*args, **kwargs):
+        if len(args) >= 2 and type(args[1]) == args[0]:
+            args = args[1:]
+        return func(*args, **kwargs)
+    return wrapper
 
 @annotation
 @extended_annotation
 def log(func_name=None, log_=__log, level_=logging.INFO):
+    """
+    日志注解
+    """
     def wrapper(func):
+        @extended_classmethod
         def _execute(*args, **kwargs):
             start_time = int(time.time() * 1000)
             result = func(*args, **kwargs)
             log_.log(level_, '方法名:{}, 参数: {}(*args) {}(**kwargs), 返回值: {}, 耗时: {}ms'
-                     .format(func_name if type(func_name) == str else func.__name__, args, kwargs, result, int(time.time() * 1000) - start_time))
+                     .format(func_name if type(func_name) == str else func.__name__, args, kwargs, result,
+                             int(time.time() * 1000) - start_time))
             return result
-
         return _execute
-
     return wrapper
 
 
@@ -53,6 +66,7 @@ def retry(func_name=None, retry_times=10, wait=5, default_return_value={}):
     """
 
     def wrapper(func):
+        @extended_classmethod
         def _execute(*args, **kwargs):
             retry_ts = retry_times
             while retry_ts > 0:
@@ -64,9 +78,7 @@ def retry(func_name=None, retry_times=10, wait=5, default_return_value={}):
                     retry_ts -= 1
                     time.sleep(wait)
             return default_return_value
-
         return _execute
-
     return wrapper
 
 
@@ -78,15 +90,14 @@ def parallel(func_name=None, pool: Executor = None):
     """
 
     def wrapper(func):
+        @extended_classmethod
         def _execute(*args, **kwargs) -> SimpleFuture:
             if pool is None:
                 t = SimpleThread(func, *args, **kwargs)
                 t.start()
                 return SimpleFuture(thread=t)
             return SimpleFuture(future=pool.submit(func, *args, **kwargs))
-
         return _execute
-
     return wrapper
 
 
