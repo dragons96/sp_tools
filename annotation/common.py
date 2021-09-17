@@ -3,7 +3,7 @@ from concurrent.futures import Executor
 from types import FunctionType, MethodType
 import logging
 import traceback
-from logger import get_logger
+from ..logger import get_logger
 import time
 
 __log = get_logger()

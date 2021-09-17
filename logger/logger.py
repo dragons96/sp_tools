@@ -1,8 +1,10 @@
 import os
 import logging
 
+
 def get_logger():
     return __log
+
 
 def __get_env(key, default=None):
     return os.environ.get(key, default)
@@ -12,7 +14,8 @@ def __log_handle(log_: logging, path, stat, handler_type=logging.StreamHandler, 
     if bool(__get_env(path + '.open', stat)):
         handle = handler_type(*args)
         handle.setLevel(eval('logging.' + __get_env(path + '.level', 'INFO').upper()))
-        handle.setFormatter(logging.Formatter(__get_env(path + '.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')))
+        handle.setFormatter(
+            logging.Formatter(__get_env(path + '.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')))
         log_.addHandler(handle)
 
 
