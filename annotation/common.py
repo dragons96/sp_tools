@@ -69,7 +69,7 @@ def log(func_name=None, log_=__log, level_=logging.INFO):
 
 @annotation
 @extended_annotation
-def retry(func_name=None, retry_times=10, wait=5, default_return_value={}):
+def retry(func_name=None, retry_times=10, ex=Exception, wait=5, default_return_value={}):
     """
     可重试
     """
@@ -77,15 +77,26 @@ def retry(func_name=None, retry_times=10, wait=5, default_return_value={}):
     def wrapper(func):
         @extended_classmethod
         def _execute(*args, **kwargs):
+            def ex_retry_check(exc, e_type):
+                if isinstance(exc, list) or isinstance(exc, tuple):
+                    for e in exc:
+                        if issubclass(e_type, e):
+                            return True
+                    return False
+                return issubclass(e_type, exc)
+
             retry_ts = retry_times
             while retry_ts > 0:
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
-                    __log.warning(
-                        f"方法名:{func_name if type(func_name) == str else func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {traceback.format_exc()}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
-                    retry_ts -= 1
-                    time.sleep(wait)
+                    if ex_retry_check(ex, type(e)):
+                        __log.warning(
+                            f"方法名:{func_name if type(func_name) == str else func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {traceback.format_exc()}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
+                        retry_ts -= 1
+                        time.sleep(wait)
+                    else:
+                        raise e
             return default_return_value
 
         return _execute
