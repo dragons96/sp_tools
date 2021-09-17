@@ -1,11 +1,13 @@
-import time
 import threading
 from concurrent.futures import Executor
 from types import FunctionType, MethodType
 import logging
+import traceback
 from logger import get_logger
+import time
 
 __log = get_logger()
+
 
 def annotation(func):
     """
@@ -28,16 +30,20 @@ def extended_annotation(func):
 
     return wrapper
 
+
 @annotation
 def extended_classmethod(func):
     """
     拓展@classmethod支持
     """
+
     def wrapper(*args, **kwargs):
         if len(args) >= 2 and type(args[1]) == args[0]:
             args = args[1:]
         return func(*args, **kwargs)
+
     return wrapper
+
 
 @annotation
 @extended_annotation
@@ -45,6 +51,7 @@ def log(func_name=None, log_=__log, level_=logging.INFO):
     """
     日志注解
     """
+
     def wrapper(func):
         @extended_classmethod
         def _execute(*args, **kwargs):
@@ -54,7 +61,9 @@ def log(func_name=None, log_=__log, level_=logging.INFO):
                      .format(func_name if type(func_name) == str else func.__name__, args, kwargs, result,
                              int(time.time() * 1000) - start_time))
             return result
+
         return _execute
+
     return wrapper
 
 
@@ -74,11 +83,13 @@ def retry(func_name=None, retry_times=10, wait=5, default_return_value={}):
                     return func(*args, **kwargs)
                 except Exception as e:
                     __log.warning(
-                        f"方法名:{func_name if type(func_name) == str else func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {str(e)}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
+                        f"方法名:{func_name if type(func_name) == str else func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {traceback.format_exc()}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
                     retry_ts -= 1
                     time.sleep(wait)
             return default_return_value
+
         return _execute
+
     return wrapper
 
 
@@ -97,7 +108,9 @@ def parallel(func_name=None, pool: Executor = None):
                 t.start()
                 return SimpleFuture(thread=t)
             return SimpleFuture(future=pool.submit(func, *args, **kwargs))
+
         return _execute
+
     return wrapper
 
 
@@ -136,6 +149,7 @@ class SimpleFuture:
     """
     简单future
     """
+    __default_wait_interval = 0.001
 
     def __init__(self, thread=None, future=None):
         self.__thread = thread
@@ -144,7 +158,18 @@ class SimpleFuture:
     def is_done(self):
         if self.__thread is not None:
             return self.__thread.is_done()
+        return self.__future.done()
 
-    def get(self):
+    def get(self, timeout=None):
         if self.__thread is not None:
+            if timeout is not None:
+                begin_time = int(time.time())
+                cur_time = int(time.time())
+            while not self.is_done():
+                time.sleep(self.__default_wait_interval)
+                if timeout is not None:
+                    cur_time += self.__default_wait_interval
+                    if cur_time - begin_time >= timeout:
+                        raise Exception(f'SimpleFuture: {self} 获取数据等待时间超出限制时间: {timeout} s')
             return self.__thread.get()
+        return self.__future.result(timeout=timeout)
