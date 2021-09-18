@@ -5,6 +5,7 @@ import logging
 import traceback
 from ..logger import get_logger
 import time
+import functools
 
 __log = get_logger()
 
@@ -17,15 +18,16 @@ def annotation(func):
 
 
 @annotation
-def extended_annotation(func):
+def extended_annotation(func, default_=False):
     """
     优化注解语法糖, 支持 @xxx 或 @xxx() 写法, 不支持第一个参数为function或method类型的注解
     """
 
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         lens = len(args)
         if lens == 1 and (isinstance(args[0], FunctionType) or isinstance(args[0], MethodType)):
-            return func(None)(*args, **kwargs)
+            return func(default_)(*args, **kwargs)
         return func(*args, **kwargs)
 
     return wrapper
@@ -37,6 +39,7 @@ def extended_classmethod(func):
     拓展@classmethod支持
     """
 
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         if len(args) >= 2 and type(args[1]) == args[0]:
             args = args[1:]
@@ -46,21 +49,20 @@ def extended_classmethod(func):
 
 
 @annotation
-@extended_annotation
-def log(func_name=None, log_=__log, level_=logging.INFO):
+def extended_ignore(condition: bool, origin_func):
     """
-    日志注解
+    拓展忽略注解功能
+    :param condition: true 忽略， false 不忽略
+    :param origin_func: 实际方法
+    :return: function
     """
 
     def wrapper(func):
-        @extended_classmethod
+        @functools.wraps(origin_func)
         def _execute(*args, **kwargs):
-            start_time = int(time.time() * 1000)
-            result = func(*args, **kwargs)
-            log_.log(level_, '方法名:{}, 参数: {}(*args) {}(**kwargs), 返回值: {}, 耗时: {}ms'
-                     .format(func_name if type(func_name) == str else func.__name__, args, kwargs, result,
-                             int(time.time() * 1000) - start_time))
-            return result
+            if not condition:
+                return func(*args, **kwargs)
+            return origin_func(*args, **kwargs)
 
         return _execute
 
@@ -69,12 +71,68 @@ def log(func_name=None, log_=__log, level_=logging.INFO):
 
 @annotation
 @extended_annotation
-def retry(func_name=None, retry_times=10, ex=Exception, wait=5, default_return_value={}):
+def log(ignore=False, log_=__log,
+        format: str = '\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nReturn: {return_}\nCost: {cost_}ms',
+        level_=logging.INFO,
+        err_enable=True,
+        err_format: str = '\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nCost: {cost_}ms\nErr: {ex}',
+        err_level=logging.ERROR):
     """
-    可重试
+    日志注解 使用方式:
+        @log
+        def f():
+            pass
+    :param ignore: 是否忽略该注解
+    :param log_: 日志对象(默认使用内置全局日志)
+    :param format: 正常信息输出格式
+    :param level_: 正常信息日志输出级别
+    :param err_enable: 是否开启异常日志记录
+    :param err_format: 异常日志输出格式
+    :param err_level: 异常日志输出级别
     """
 
     def wrapper(func):
+        @functools.wraps(func)
+        @extended_ignore(ignore, func)
+        @extended_classmethod
+        def _execute(*args, **kwargs):
+            start_time = int(time.time() * 1000)
+            try:
+                result = func(*args, **kwargs)
+                log_.log(level_, format.format(method_=func.__name__, args_=args, kwargs_=kwargs, return_=result,
+                                               cost_=int(time.time() * 1000) - start_time))
+                return result
+            except Exception as e:
+                if err_enable:
+                    log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
+                                                          ex=traceback.format_exc(), ex_msg=str(e),
+                                                          cost_=int(time.time() * 1000) - start_time))
+                raise e
+
+        return _execute
+
+    return wrapper
+
+
+@annotation
+@extended_annotation
+def retry(ignore=False, retry_times=10, ex=Exception, interval=5, default_return_value=None):
+    """
+    重试注解, 使用方式:
+        @retry
+        def f():
+            pass
+    :param ignore: 是否忽略该注解
+    :param retry_times: 重试次数
+    :param ex: 指定异常类型(即仅只对设定的异常进行重试), 支持使用tuple or list方式设定多种异常类型
+    :param interval: 重试间隔, 单位: s
+    :param default_return_value: 重试后仍然失败返回的默认值，若为None则抛出最后一次重试的异常，否则返回该默认值
+    """
+
+    def wrapper(func):
+
+        @functools.wraps(func)
+        @extended_ignore(ignore, func)
         @extended_classmethod
         def _execute(*args, **kwargs):
             def ex_retry_check(exc, e_type):
@@ -86,17 +144,21 @@ def retry(func_name=None, retry_times=10, ex=Exception, wait=5, default_return_v
                 return issubclass(e_type, exc)
 
             retry_ts = retry_times
-            while retry_ts > 0:
+            latest_err = None
+            while retry_ts >= 0:
                 try:
                     return func(*args, **kwargs)
                 except Exception as e:
+                    latest_err = e
                     if ex_retry_check(ex, type(e)):
                         __log.warning(
-                            f"方法名:{func_name if type(func_name) == str else func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {traceback.format_exc()}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
+                            f"方法名:{func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {traceback.format_exc()}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
                         retry_ts -= 1
-                        time.sleep(wait)
+                        time.sleep(interval)
                     else:
                         raise e
+            if default_return_value is None:
+                raise latest_err
             return default_return_value
 
         return _execute
@@ -106,12 +168,19 @@ def retry(func_name=None, retry_times=10, ex=Exception, wait=5, default_return_v
 
 @annotation
 @extended_annotation
-def parallel(func_name=None, pool: Executor = None):
+def parallel(ignore=False, pool: Executor = None):
     """
-    并行, 使用方式: @parallel
+    并行, 使用方式:
+        @parallel
+        def f():
+            pass
+    :param ignore: 是否忽略该注解
+    :param pool: 当前仅支持concurrent.futures.ThreadPoolExecutor线程池, 若不传该值默认新建线程运行
     """
 
     def wrapper(func):
+        @functools.wraps(func)
+        @extended_ignore(ignore, func)
         @extended_classmethod
         def _execute(*args, **kwargs) -> SimpleFuture:
             if pool is None:

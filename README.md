@@ -79,14 +79,13 @@ sp_f4(p=2)
 # 注释事项:
 # 1.@parallel注解必须存放在@retry之上, 若@parallel注解放在@retry注解下将无法触发重试(@parallel不会产生异常)
 # 2.@parallel注解会导致@log注解耗时统计不准确
-# 3.方法之上的非第一个注解均需要加上func_name参数,否则会导致这些注解日志名称记录异常(具体示例如下图所示)
 from sp_tools import *
 
 logger = get_logger()
 
-@parallel(func_name='sp_f5')
-@retry(func_name='sp_f5')
 @log
+@parallel
+@retry
 def sp_f5(s=2):
     logger.info('SP_F5, s=' + str(s))
     return s + 2
