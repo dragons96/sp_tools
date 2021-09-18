@@ -72,10 +72,10 @@ def extended_ignore(condition: bool, origin_func):
 @annotation
 @extended_annotation
 def log(ignore=False, log_=__log,
-        format: str = '\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nReturn: {return_}\nCost: {cost_}ms',
+        format: str = '\nRecorder: @log\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nReturn: {return_}\nCost: {cost_}ms',
         level_=logging.INFO,
         err_enable=True,
-        err_format: str = '\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nCost: {cost_}ms\nErr: {ex}',
+        err_format: str = '@Recorder: @log\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nCost: {cost_}ms\nErr: {ex_}',
         err_level=logging.ERROR):
     """
     日志注解 使用方式:
@@ -105,7 +105,7 @@ def log(ignore=False, log_=__log,
             except Exception as e:
                 if err_enable:
                     log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
-                                                          ex=traceback.format_exc(), ex_msg=str(e),
+                                                          ex_=traceback.format_exc(), ex_msg_=str(e),
                                                           cost_=int(time.time() * 1000) - start_time))
                 raise e
 
@@ -116,7 +116,12 @@ def log(ignore=False, log_=__log,
 
 @annotation
 @extended_annotation
-def retry(ignore=False, retry_times=10, ex=Exception, interval=5, default_return_value=None):
+def retry(ignore=False, retry_times=10, ex=Exception, interval=5,
+          default_return_value=None,
+          err_log_enable: bool = True,
+          err_log_=__log,
+          err_level=logging.WARNING,
+          err_format: str = '\nRecorder: @retry\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nRemainRetryTimes: {remain_retry_}\nRemainRetryInterval:{remain_retry_interval_}\nErr: {ex_}'):
     """
     重试注解, 使用方式:
         @retry
@@ -127,6 +132,10 @@ def retry(ignore=False, retry_times=10, ex=Exception, interval=5, default_return
     :param ex: 指定异常类型(即仅只对设定的异常进行重试), 支持使用tuple or list方式设定多种异常类型
     :param interval: 重试间隔, 单位: s
     :param default_return_value: 重试后仍然失败返回的默认值，若为None则抛出最后一次重试的异常，否则返回该默认值
+    :param err_log_enable: 是否开启重试日志
+    :param err_log_: 日志对象(默认使用内置全局日志)
+    :param err_level: 重试日志记录等级
+    :param err_format: 重试日志格式化格式
     """
 
     def wrapper(func):
@@ -151,8 +160,11 @@ def retry(ignore=False, retry_times=10, ex=Exception, interval=5, default_return
                 except Exception as e:
                     latest_err = e
                     if ex_retry_check(ex, type(e)):
-                        __log.warning(
-                            f"方法名:{func.__name__}, 参数: {args}(*args) {kwargs}(**kwargs), 发生异常: {traceback.format_exc()}, 当前剩余重试次数:{retry_ts}" + f", 等待:{wait}秒后重试" if retry_ts > 0 else "")
+                        if err_log_enable:
+                            err_log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
+                                                                  ex_=traceback.format_exc(), ex_msg_=str(e),
+                                                                  remain_retry_=retry_ts,
+                                                                  remain_retry_interval_=interval))
                         retry_ts -= 1
                         time.sleep(interval)
                     else:
