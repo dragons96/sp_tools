@@ -162,9 +162,9 @@ def retry(ignore=False, retry_times=10, ex=Exception, interval=5,
                     if ex_retry_check(ex, type(e)):
                         if err_log_enable:
                             err_log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
-                                                                  ex_=traceback.format_exc(), ex_msg_=str(e),
-                                                                  remain_retry_=retry_ts,
-                                                                  remain_retry_interval_=interval))
+                                                                      ex_=traceback.format_exc(), ex_msg_=str(e),
+                                                                      remain_retry_=retry_ts,
+                                                                      remain_retry_interval_=interval))
                         retry_ts -= 1
                         time.sleep(interval)
                     else:
