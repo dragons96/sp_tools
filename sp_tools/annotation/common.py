@@ -20,7 +20,8 @@ def annotation(func):
 @annotation
 def extended_annotation(func, default_=False):
     """
-    优化注解语法糖, 支持 @xxx 或 @xxx() 写法, 不支持第一个参数为function或method类型的注解
+    优化注解语法糖, 支持 @xxx 或 @xxx() 写法,
+    不支持只有一个参数且为function或method且*args方式输入的注解
     """
 
     @functools.wraps(func)
@@ -162,9 +163,9 @@ def retry(ignore=False, retry_times=10, ex=Exception, interval=5,
                     if ex_retry_check(ex, type(e)):
                         if err_log_enable:
                             err_log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
-                                                                  ex_=traceback.format_exc(), ex_msg_=str(e),
-                                                                  remain_retry_=retry_ts,
-                                                                  remain_retry_interval_=interval))
+                                                                      ex_=traceback.format_exc(), ex_msg_=str(e),
+                                                                      remain_retry_=retry_ts,
+                                                                      remain_retry_interval_=interval))
                         retry_ts -= 1
                         time.sleep(interval)
                     else:
@@ -188,6 +189,7 @@ def parallel(ignore=False, pool: Executor = None):
             pass
     :param ignore: 是否忽略该注解
     :param pool: 当前仅支持concurrent.futures.ThreadPoolExecutor线程池, 若不传该值默认新建线程运行
+    :return
     """
 
     def wrapper(func):

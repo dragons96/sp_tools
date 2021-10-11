@@ -7,7 +7,7 @@ import setuptools
 setup(
     name='sp_tools',
     author='dragons',
-    version='0.0.1',
+    version='0.0.2',
     description='为简化Python开发而生',
     long_description='Python基础开发工具包',
     author_email='521274311@qq.com',

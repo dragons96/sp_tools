@@ -73,6 +73,49 @@ def sp_f4(p=1):
 sp_f4(3)
 sp_f4(p=2)
 ```
+
+##### 4.拓展全局日志(选用)
+```python
+# 需要在引入全局日志之前注入env修改配置
+import os
+# 设置全局日志名称
+# os.environ.setdefault('logging.name', '全局日志')
+# 设置全局日志默认级别
+# os.environ.setdefault('logging.level', 'INFO')
+# 开启控制台日志记录
+# os.environ.setdefault('logging.StreamHandler.open', True)
+# 设置控制台日志级别
+# os.environ.setdefault('logging.StreamHandler.level', 'INFO')
+# 设置控制台日志格式
+# os.environ.setdefault('logging.StreamHandler.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# 开启文件日志记录
+# os.environ.setdefault('logging.FileHandler.open', False)
+# 设置文件存储路径(暂仅支持本地文件存储)
+# os.environ.setdefault('logging.FileHandler.filename', './global.log')
+# 设置文件写入模式(w:覆盖, a:追加)
+# os.environ.setdefault('logging.FileHandler.mode', 'a')
+# 设置文件编码格式
+# os.environ.setdefault('logging.FileHandler.encoding', 'utf-8')
+# 设置文件日志级别
+# os.environ.setdefault('logging.FileHandler.level', 'INFO')
+# 设置文件日志格式
+# os.environ.setdefault('logging.FileHandler.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+from sp_tools import get_logger
+# 直接使用
+logger = get_logger()
+
+# -------------------------
+
+# 注解使用
+from sp_tools import log
+@log
+def f():
+    pass
+
+f()
+```
+
 ### 实战指南
 ##### 1.注解复用
 ```python
