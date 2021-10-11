@@ -13,7 +13,7 @@ setup(
     author_email='521274311@qq.com',
     url='https://gitee.com/kingons/sp_tools',
     packages=setuptools.find_packages(),
-    install_requires= [
+    install_requires=[
     ],
     classifiers=[
         'Intended Audience :: Developers',

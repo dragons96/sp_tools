@@ -3,8 +3,17 @@
 ###
 ### 本地安裝方法
 ##### 1.下载源码
-##### 2.python setup.py sdist bdist_wheel
-##### 3.windows下pip install dist/sp_tools-{version}.whl, linux下pip install dist/sp_tools-{version}.tar.gz
+##### 2. 进入源码根目录, 执行命令
+```bat
+python setup.py sdist bdist_wheel
+
+windows下
+pip install dist/sp_tools-{version}.whl
+
+linux下
+pip install dist/sp_tools-{version}.tar.gz
+
+```
 ### 模块导入 
 ```python
 # 注解导入
