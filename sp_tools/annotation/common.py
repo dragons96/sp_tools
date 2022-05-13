@@ -73,10 +73,10 @@ def extended_ignore(condition: bool, origin_func):
 @annotation
 @extended_annotation
 def log(ignore=False, log_=__log,
-        format: str = '\nRecorder: @log\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nReturn: {return_}\nCost: {cost_}ms',
+        format: str = '\nRecorder: @log\nFunction/Method: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nReturn: {return_}\nCost: {cost_}ms',
         level_=logging.INFO,
         err_enable=True,
-        err_format: str = '@Recorder: @log\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nCost: {cost_}ms\nErr: {ex_}',
+        err_format: str = '@Recorder: @log\nFunction/Method: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nCost: {cost_}ms\nErr: {ex_}',
         err_level=logging.ERROR):
     """
     日志注解 使用方式:
@@ -100,12 +100,12 @@ def log(ignore=False, log_=__log,
             start_time = int(time.time() * 1000)
             try:
                 result = func(*args, **kwargs)
-                log_.log(level_, format.format(method_=func.__name__, args_=args, kwargs_=kwargs, return_=result,
+                log_.log(level_, format.format(method_=func.__qualname__, args_=args, kwargs_=kwargs, return_=result,
                                                cost_=int(time.time() * 1000) - start_time))
                 return result
             except Exception as e:
                 if err_enable:
-                    log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
+                    log_.log(err_level, err_format.format(method_=func.__qualname__, args_=args, kwargs_=kwargs,
                                                           ex_=traceback.format_exc(), ex_msg_=str(e),
                                                           cost_=int(time.time() * 1000) - start_time))
                 raise e
@@ -122,7 +122,7 @@ def retry(ignore=False, retry_times=10, ex=Exception, interval=5,
           err_log_enable: bool = True,
           err_log_=__log,
           err_level=logging.WARNING,
-          err_format: str = '\nRecorder: @retry\nMethod: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nRemainRetryTimes: {remain_retry_}\nRemainRetryInterval:{remain_retry_interval_}\nErr: {ex_}'):
+          err_format: str = '\nRecorder: @retry\nFunction/Method: {method_}\nParameters: {args_}(*args) {kwargs_}(**kwargs)\nRemainRetryTimes: {remain_retry_}\nRemainRetryInterval:{remain_retry_interval_}\nErr: {ex_}'):
     """
     重试注解, 使用方式:
         @retry
@@ -162,7 +162,7 @@ def retry(ignore=False, retry_times=10, ex=Exception, interval=5,
                     latest_err = e
                     if ex_retry_check(ex, type(e)):
                         if err_log_enable:
-                            err_log_.log(err_level, err_format.format(method_=func.__name__, args_=args, kwargs_=kwargs,
+                            err_log_.log(err_level, err_format.format(method_=func.__qualname__, args_=args, kwargs_=kwargs,
                                                                       ex_=traceback.format_exc(), ex_msg_=str(e),
                                                                       remain_retry_=retry_ts,
                                                                       remain_retry_interval_=interval))
