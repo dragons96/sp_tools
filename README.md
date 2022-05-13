@@ -129,6 +129,11 @@ def f():
 
 f()
 ```
+##### 5.自动将当前项目添加至sys.path的autosyspath包 (详细说明见: https://github.com/dragons96/toautosyspath)
+```python
+# 导入该模块可自建向上检索项目根路径并添加至sys.path中(原理是基于__init__.py文件的向上检索, 请严格规范项目结构, 项目内模块及运行模块应添加__init__.py文件)
+import sp_tools.autosyspath
+```
 
 ### 实战指南
 ##### 1.注解复用
