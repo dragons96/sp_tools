@@ -88,7 +88,7 @@ def log(ignore=False, log_=__log,
     :param format: 正常信息输出格式
     :param level_: 正常信息日志输出级别
     :param err_enable: 是否开启异常日志记录
-    :param err_format: 异常日志输出格式
+    :param err_format: 异常日志输出格式 (支持参数: method_: 调用方法名, args_: args参数, kwargs_: kwargs参数, cost_: 方法调用耗时毫秒, ex_: 发生异常时的异常栈, ex_msg_: 发生异常时的异常信息)
     :param err_level: 异常日志输出级别
     """
 
