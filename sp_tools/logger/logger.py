@@ -19,7 +19,7 @@ def __log_handle(log_: logging, path, stat, handler_type=logging.StreamHandler, 
         log_.addHandler(handle)
 
 
-__log = logging.getLogger(__get_env('logging.name', "全局日志"))
+__log = logging.getLogger(__get_env('logging.name', "GlobalLogger"))
 __log.setLevel(eval('logging.' + __get_env('logging.level', 'INFO').upper()))
 # 控制台
 __log_handle(__log, 'logging.StreamHandler', True)
