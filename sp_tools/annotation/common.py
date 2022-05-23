@@ -264,6 +264,6 @@ class SimpleFuture:
                 if timeout is not None:
                     cur_time += self.__default_wait_interval
                     if cur_time - begin_time >= timeout:
-                        raise Exception(f'SimpleFuture: {self} 获取数据等待时间超出限制时间: {timeout} s')
+                        raise Exception(f'SimpleFuture: {self} wait timeout: {timeout} s')
             return self.__thread.get()
         return self.__future.result(timeout=timeout)
