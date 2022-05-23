@@ -210,7 +210,7 @@ def parallel(ignore=False, pool: Executor = None):
 
 class SimpleThread(threading.Thread):
     """
-    简单线程池(可获取返回结果)
+    简单线程对象(可获取返回结果)
     """
 
     def __init__(self, func, *args, **kwargs):
