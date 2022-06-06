@@ -4,12 +4,15 @@ except:
     from distutils.core import setup
 import setuptools
 
+with open('README.md', 'r', encoding='utf-8') as f:
+    long_description = f.read()
+
 setup(
     name='sp_tools',
     author='dragons',
-    version='0.0.3',
+    version='0.0.4',
     description='为简化Python开发而生',
-    long_description='Python基础开发工具包',
+    long_description=long_description,
     author_email='521274311@qq.com',
     url='https://gitee.com/kingons/sp_tools',
     packages=setuptools.find_packages(),
