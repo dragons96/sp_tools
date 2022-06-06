@@ -98,27 +98,30 @@ import os
 # 设置全局日志默认级别
 # os.environ.setdefault('logging.level', 'INFO')
 # 开启控制台日志记录
-# os.environ.setdefault('logging.StreamHandler.open', True)
+# os.environ.setdefault('logging.streamHandler.open', True)
 # 设置控制台日志级别
-# os.environ.setdefault('logging.StreamHandler.level', 'INFO')
+# os.environ.setdefault('logging.streamHandler.level', 'INFO')
 # 设置控制台日志格式
-# os.environ.setdefault('logging.StreamHandler.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# os.environ.setdefault('logging.streamHandler.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # 开启文件日志记录
-# os.environ.setdefault('logging.FileHandler.open', False)
+# os.environ.setdefault('logging.fileHandler.open', False)
 # 设置文件存储路径(暂仅支持本地文件存储)
-# os.environ.setdefault('logging.FileHandler.filename', './global.log')
+# os.environ.setdefault('logging.fileHandler.filename', './global.log')
 # 设置文件写入模式(w:覆盖, a:追加)
-# os.environ.setdefault('logging.FileHandler.mode', 'a')
+# os.environ.setdefault('logging.fileHandler.mode', 'a')
 # 设置文件编码格式
-# os.environ.setdefault('logging.FileHandler.encoding', 'utf-8')
+# os.environ.setdefault('logging.fileHandler.encoding', 'utf-8')
 # 设置文件日志级别
-# os.environ.setdefault('logging.FileHandler.level', 'INFO')
+# os.environ.setdefault('logging.fileHandler.level', 'INFO')
 # 设置文件日志格式
-# os.environ.setdefault('logging.FileHandler.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# os.environ.setdefault('logging.fileHandler.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-from sp_tools import get_logger
+from sp_tools import get_logger, new_logger
 # 直接使用
 logger = get_logger()
+
+# 定制化日志对象
+myLogger = new_logger('myLogger')
 
 # -------------------------
 
@@ -155,4 +158,42 @@ def sp_f5(s=2):
 
 sp_f5(1)
 sp_f5(s=4)
+```
+
+### 变更说明
+##### 2022.06.06 更新
+1. 修复内置日志对象bool类型解析问题
+2. 内置日志配置参数全部转为驼峰命名
+3. 内置日志支持获取新实例(提供new_logger方法, properties参数见以下示例)
+```python
+from sp_tools import new_logger
+logger = new_logger("myLog", {
+    'logging': {
+        # 全局日志级别
+        'level': 'DEBUG',
+        'streamHandler': {
+            'open': 'True',
+            # handler 日志级别
+            'level': 'INFO',
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        },
+        'fileHandler': {
+            'open': 'False',
+            'level': 'INFO',
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            'filename': './custom.log',
+            'mode': 'a',
+            'encoding': 'utf-8',
+            'delay': 'False',
+        },
+        'timedRotatingFileHandler': {
+            'open': 'False',
+            'level': 'INFO',
+            'filename': './timed-rotating.log',
+            'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        }
+    }
+})
+# 自定义 handler 或其他 handler 可通过 logger.addHandler方法进行添加
+# logger.addHandler(...)
 ```
