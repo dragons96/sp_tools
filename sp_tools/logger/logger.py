@@ -1,29 +1,62 @@
 import os
 import logging
+import logging.handlers
 from logging import Logger
+
+_STREAM_HANDLE = 'logging.streamHandler'
+_FILE_HANDLE = 'logging.fileHandler'
+_ROTATING_FILE_HANDLE = 'logging.rotatingFileHandler'
+_TIME_ROTATING_FILE_HANDLE = 'logging.timedRotatingFileHandler'
 
 
 def get_logger():
     return __log
 
 
+def new_logger(name, properties: dict = None):
+    return _DelayedConfigurationLogger(name, properties=properties)
+
+
 def _get_env(key, default=None):
     return os.environ.get(key, default)
 
 
-def _log_handle(log_: logging.Logger, path, default_state, handler_type=logging.StreamHandler, *args):
-    if bool(_get_env(path + '.open', default_state)):
-        handle = handler_type(*args)
+def _get_properties(properties: dict, key, default=None):
+    keys = key.split('.')
+    p = properties
+    for k in keys:
+        if k in p:
+            p = p[k]
+        else:
+            return default
+    return p
+
+
+def _log_handle_env(log_: logging.Logger, path, default_state, handler_type=logging.StreamHandler, *args, **kwargs):
+    if eval(_get_env(path + '.open', default_state)):
+        handle = handler_type(*args, **kwargs)
         handle.setLevel(eval('logging.' + _get_env(path + '.level', 'INFO').upper()))
         handle.setFormatter(
             logging.Formatter(_get_env(path + '.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')))
         log_.addHandler(handle)
 
 
+def _log_handle_properties(log_: logging.Logger, properties: dict, path, default_state,
+                           handler_type=logging.StreamHandler, *args, **kwargs):
+    if eval(_get_properties(properties, path + '.open', default_state)):
+        handle = handler_type(*args, **kwargs)
+        handle.setLevel(eval('logging.' + _get_properties(properties, path + '.level', 'INFO').upper()))
+        handle.setFormatter(
+            logging.Formatter(
+                _get_properties(properties, path + '.format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')))
+        log_.addHandler(handle)
+
+
 def _delay_config(func):
     def wrapper(*args, **kwargs):
-        get_logger().init_config()
+        args[0].init_config()
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -32,10 +65,11 @@ class _DelayedConfigurationLogger(Logger):
     延迟初始化配置的日志对象, 仅用于当前全局日志对象的延迟装载
     """
 
-    def __init__(self, name: str, level=logging.NOTSET):
-        super().__init__("_DelayedConfigurationLogger", level)
-        self.__delegate = logging.getLogger(_get_env('logging.name', name))
+    def __init__(self, name: str, level=logging.INFO, properties=None):
+        super().__init__("_DelayedConfigurationLogger." + name, level)
+        self.__delegate = logging.getLogger(name)
         self.__init = False
+        self.__properties = properties
 
     @_delay_config
     def setLevel(self, level):
@@ -52,13 +86,6 @@ class _DelayedConfigurationLogger(Logger):
     @_delay_config
     def warning(self, msg, *args, **kwargs):
         self.__delegate.warning(msg, *args, **kwargs)
-
-    @_delay_config
-    def warn(self, msg, *args, **kwargs):
-        import warnings
-        warnings.warn("The 'warn' method is deprecated, "
-                      "use 'warning' instead", DeprecationWarning, 2)
-        self.__delegate.warn(msg, *args, **kwargs)
 
     @_delay_config
     def error(self, msg, *args, **kwargs):
@@ -126,18 +153,108 @@ class _DelayedConfigurationLogger(Logger):
     def getChild(self, suffix):
         return self.__delegate.getChild(suffix)
 
+    @_delay_config
+    def handlers_(self):
+        return self.__delegate.handlers
+
+    @_delay_config
+    def root_(self):
+        return self.__delegate.root
+
+    @_delay_config
+    def filters_(self):
+        return self.__delegate.filters
+
+    @_delay_config
+    def disabled_(self):
+        return self.__delegate.disabled
+
+    @_delay_config
+    def manager_(self):
+        return self.__delegate.manager
+
+    @_delay_config
+    def parent_(self):
+        return self.__delegate.parent
+
+    @_delay_config
+    def propagate_(self):
+        return self.__delegate.propagate
+
+    @_delay_config
+    def level_(self):
+        return self.__delegate.level
+
     def init_config(self):
         """
         从环境变量中初始化日志配置
         """
         if not self.__init:
-            self.__delegate.setLevel(eval('logging.' + _get_env('logging.level', 'INFO').upper()))
-            _log_handle(self.__delegate, 'logging.StreamHandler', True)
-            _log_handle(self.__delegate, 'logging.FileHandler', False, logging.FileHandler,
-                        _get_env('logging.FileHandler.filename', './global.log'),
-                        _get_env('logging.FileHandler.mode', 'a'),
-                        _get_env('logging.FileHandler.encoding', 'utf-8'),
-                        bool(_get_env('logging.FileHandler.delay', False)))
+            if not self.__properties:
+                self.__delegate.setLevel(eval('logging.' + _get_env('logging.level', 'INFO').upper()))
+                _log_handle_env(self.__delegate, _STREAM_HANDLE, 'True')
+                _log_handle_env(self.__delegate, _FILE_HANDLE, 'False', logging.FileHandler,
+                                _get_env(_FILE_HANDLE + '.filename', './global.log'),
+                                _get_env(_FILE_HANDLE + '.mode', 'a'),
+                                _get_env(_FILE_HANDLE + '.encoding', 'utf-8'),
+                                eval(_get_env(_FILE_HANDLE + '.delay', 'False')))
+                _log_handle_env(self.__delegate, _ROTATING_FILE_HANDLE, 'False', logging.handlers.RotatingFileHandler,
+                                _get_env(_ROTATING_FILE_HANDLE + '.filename', './rotating.log'),
+                                _get_env(_ROTATING_FILE_HANDLE + '.mode', 'a'),
+                                int(_get_env(_ROTATING_FILE_HANDLE + '.maxBytes', 0)),
+                                int(_get_env(_ROTATING_FILE_HANDLE + '.backupCount', 0)),
+                                _get_env(_ROTATING_FILE_HANDLE + '.encoding', 'utf-8'),
+                                eval(_get_env(_ROTATING_FILE_HANDLE + '.delay', 'False')))
+                _log_handle_env(self.__delegate, _TIME_ROTATING_FILE_HANDLE, 'False',
+                                logging.handlers.TimedRotatingFileHandler,
+                                _get_env(_TIME_ROTATING_FILE_HANDLE + '.filename', './rotating.log'),
+                                _get_env(_TIME_ROTATING_FILE_HANDLE + '.when', 'h'),
+                                int(_get_env(_TIME_ROTATING_FILE_HANDLE + '.interval', 1)),
+                                int(_get_env(_TIME_ROTATING_FILE_HANDLE + '.backupCount', 0)),
+                                _get_env(_TIME_ROTATING_FILE_HANDLE + '.encoding', 'utf-8'),
+                                eval(_get_env(_TIME_ROTATING_FILE_HANDLE + '.delay', 'False')),
+                                eval(_get_env(_TIME_ROTATING_FILE_HANDLE + '.utc', 'False')),
+                                _get_env(_TIME_ROTATING_FILE_HANDLE + '.atTime')
+                                )
+            else:
+                self.__delegate.setLevel(
+                    eval('logging.' + _get_properties(self.__properties, 'logging.level', 'INFO').upper()))
+                _log_handle_properties(self.__delegate, self.__properties, _STREAM_HANDLE, 'True')
+                _log_handle_properties(self.__delegate, self.__properties, _FILE_HANDLE, 'False',
+                                       logging.FileHandler,
+                                       _get_properties(self.__properties, _FILE_HANDLE + '.filename',
+                                                       './custom.log'),
+                                       _get_properties(self.__properties, _FILE_HANDLE + '.mode', 'a'),
+                                       _get_properties(self.__properties, _FILE_HANDLE + '.encoding', 'utf-8'),
+                                       eval(_get_properties(self.__properties, _FILE_HANDLE + '.delay', 'False')))
+                _log_handle_properties(self.__delegate, self.__properties, _ROTATING_FILE_HANDLE, 'False',
+                                       logging.handlers.RotatingFileHandler,
+                                       _get_properties(self.__properties, _ROTATING_FILE_HANDLE + '.filename',
+                                                       './rotating.log'),
+                                       _get_properties(self.__properties, _ROTATING_FILE_HANDLE + '.mode', 'a'),
+                                       int(_get_properties(self.__properties, _ROTATING_FILE_HANDLE + '.maxBytes', 0)),
+                                       int(_get_properties(self.__properties, _ROTATING_FILE_HANDLE + 'backupCount',
+                                                           0)),
+                                       _get_properties(self.__properties, _ROTATING_FILE_HANDLE + '.encoding', 'utf-8'),
+                                       eval(_get_properties(self.__properties, _ROTATING_FILE_HANDLE + '.delay',
+                                                            'False')))
+                _log_handle_properties(self.__delegate, self.__properties, _TIME_ROTATING_FILE_HANDLE, 'False',
+                                       logging.handlers.TimedRotatingFileHandler,
+                                       _get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.filename',
+                                                       './timed-rotating.log'),
+                                       _get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.when', 'h'),
+                                       int(_get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.interval',
+                                                           1)),
+                                       int(_get_properties(self.__properties,
+                                                           _TIME_ROTATING_FILE_HANDLE + '.backupCount', 0)),
+                                       _get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.encoding',
+                                                       'utf-8'),
+                                       eval(_get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.delay',
+                                                            'False')),
+                                       eval(_get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.utc',
+                                                            'False')),
+                                       _get_properties(self.__properties, _TIME_ROTATING_FILE_HANDLE + '.atTime')
+                                       )
             self.__init = True
 
 
